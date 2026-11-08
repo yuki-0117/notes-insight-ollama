@@ -1,0 +1,35 @@
+# 用 docker compose 一次把「本地 Ollama 服務」跟「呼叫它的 Python 程式」都跑起來，
+# 不需要在電腦上另外手動安裝 Ollama。
+#
+# 使用方式：
+#   docker compose up -d ollama                # 1) 先把 ollama 服務跑起來
+#   docker compose exec ollama ollama pull qwen2.5:7b   # 2) 下載模型（第一次要跑，會花一點時間）
+#   docker compose run --rm app uv run python -m notes_extractor run-all   # 3) 執行主程式
+#   docker compose run --rm app uv run python scripts/build_site.py       # 4) 重新產生作品頁
+#
+# data/outputs 跟 docs 都掛成 volume，容器裡產生的結果會直接出現在你電腦的
+# 專案資料夾裡，可以直接拿去 git commit。
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: notes-insight-ollama-server
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+
+  app:
+    build: .
+    container_name: notes-insight-ollama-app
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+    volumes:
+      - ./data:/app/data
+      - ./docs:/app/docs
+
+volumes:
+  ollama-models:
