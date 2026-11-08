@@ -20,10 +20,19 @@ class ActionItem(BaseModel):
 
     task: str = Field(..., description="待辦事項的具體內容，例如「完成第三章習題」")
     owner: str | None = Field(
-        default=None, description="負責人；筆記中若沒有明確提到負責人則留空"
+        default=None,
+        description=(
+            "負責人姓名或代稱。只要原文中有人名跟這個待辦事項寫在一起"
+            "（例如「OOO 負責」「OOO 要做」），務必填入這裡，不要留空；"
+            "完全沒提到負責人才填 null"
+        ),
     )
     deadline: str | None = Field(
-        default=None, description="截止日期或時間；筆記中若沒有明確提到則留空"
+        default=None,
+        description=(
+            "截止日期或時間，照原文寫法填即可（例如「這週五前」「11/14」）；"
+            "完全沒提到才填 null"
+        ),
     )
     priority: Priority = Field(
         default="medium", description="優先度：high / medium / low"

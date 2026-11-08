@@ -76,7 +76,7 @@ def render_result_card(record: dict) -> str:
     raw_text = record.get("raw_text", "")
 
     key_points = "".join(f"<li>{esc(point)}</li>" for point in insight.get("key_points", []))
-    topics = "".join(
+    topics = "\n".join(
         f'<span class="tag">{esc(topic)}</span>' for topic in insight.get("topics", [])
     )
 
