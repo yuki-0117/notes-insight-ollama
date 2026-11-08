@@ -26,7 +26,7 @@ notes-insight-ollama/
 │   └── cli.py           # 命令列介面（run / run-all）
 ├── data/
 │   ├── samples/         # 3 份範例筆記（課程筆記／會議記錄／讀書會逐字稿）
-│   └── outputs/         # 執行後產生的結構化結果（.json），目前是空的
+│   └── outputs/         # 執行後產生的結構化結果（.json）；本 repo 已附上三份實際執行結果
 ├── scripts/build_site.py  # 讀取 data/outputs/*.json，產生 docs/index.html
 ├── docs/index.html       # GitHub Pages 作品頁（由上面的腳本自動產生）
 ├── tests/                # pytest 測試（全部用假資料，不需要連線 Ollama）
