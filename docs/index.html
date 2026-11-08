@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 讀書筆記＆待辦事項萃取器</title>
+<style>
+  :root {
+    --macaron-mint: #bdeedd;
+    --macaron-pink: #ffd3e2;
+    --macaron-lavender: #e2d9f7;
+    --macaron-yellow: #fff3bf;
+    --ink: #3b3042;
+    --ink-soft: #6b6070;
+    --bg: #fbf8ff;
+    --card-bg: #ffffff;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    background: linear-gradient(180deg, var(--macaron-lavender) 0%, var(--bg) 320px);
+    color: var(--ink);
+    line-height: 1.75;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px 80px; }
+  header.hero { padding: 56px 0 28px; }
+  header.hero h1 { font-size: 2rem; margin: 0 0 10px; }
+  header.hero p { color: var(--ink-soft); margin: 0; }
+  nav.toc {
+    display: flex; gap: 10px; flex-wrap: wrap; margin: 24px 0 40px;
+  }
+  nav.toc a {
+    text-decoration: none; color: var(--ink); background: var(--card-bg);
+    padding: 8px 16px; border-radius: 999px; font-size: 0.9rem;
+    box-shadow: 0 2px 10px rgba(80, 60, 100, 0.08);
+  }
+  section { margin-bottom: 52px; scroll-margin-top: 20px; }
+  section > h2 {
+    display: inline-block; font-size: 1.3rem; margin-bottom: 18px;
+    padding: 4px 14px; border-radius: 10px; background: var(--macaron-yellow);
+  }
+  .card {
+    background: var(--card-bg); border-radius: var(--radius); padding: 22px 26px;
+    box-shadow: 0 4px 18px rgba(80, 60, 100, 0.08); margin-bottom: 18px;
+  }
+  .results-grid { display: grid; gap: 20px; }
+  .result-card__header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .result-card__header h3 { margin: 0; }
+  .source-file { font-size: 0.8rem; color: var(--ink-soft); }
+  .summary { color: var(--ink-soft); }
+  .tags { margin: 6px 0 14px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    background: var(--macaron-mint); padding: 3px 12px; border-radius: 999px;
+    font-size: 0.78rem;
+  }
+  .key-points { padding-left: 1.2em; margin: 6px 0 18px; }
+  .action-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 10px; }
+  .action-table th, .action-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee5fb; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; }
+  details { margin-top: 10px; }
+  details summary { cursor: pointer; color: var(--ink-soft); font-size: 0.85rem; }
+  .raw-text {
+    white-space: pre-wrap; background: #faf7ff; padding: 14px; border-radius: 12px;
+    font-size: 0.82rem; color: var(--ink-soft); margin-top: 8px;
+  }
+  .muted { color: var(--ink-soft); font-size: 0.9rem; }
+  pre code, pre { background: #2f2a38; color: #f4f0fb; padding: 14px 16px; border-radius: 12px; display: block; overflow-x: auto; font-size: 0.85rem; }
+  code { background: #efe8fb; padding: 2px 6px; border-radius: 6px; font-size: 0.88em; }
+  ol, ul { margin: 8px 0; }
+  footer { color: var(--ink-soft); font-size: 0.82rem; text-align: center; padding-top: 20px; }
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stat {
+    background: var(--macaron-pink); border-radius: 14px; padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <h1>📓 AI 讀書筆記＆待辦事項萃取器</h1>
+    <p>資管系課程作業｜自選主題：把雜亂的課堂筆記、會議記錄、讀書會逐字稿，
+       丟給本地 Ollama 模型，自動整理成重點摘要與待辦事項清單。</p>
+  </header>
+
+  <nav class="toc">
+    <a href="#what">做了什麼</a>
+    <a href="#how">怎麼執行</a>
+    <a href="#compare">本地 vs 雲端比較</a>
+    <a href="#results">執行結果</a>
+    <a href="#ai-usage">AI 使用說明</a>
+  </nav>
+
+  <section id="what">
+    <h2>做了什麼</h2>
+    <div class="card">
+      <p>這支程式用 <strong>Python + uv</strong> 呼叫<strong>本地 Ollama</strong>
+         模型，展示 W6 課程教的「<strong>結構化輸出（Structured Output）</strong>」能力：
+         不是請模型自由發揮寫一段摘要，而是定義好一份 JSON Schema
+         （標題、重點摘要、條列重點、待辦事項、主題標籤），強制模型的回覆必須符合
+         這個格式，程式再用 Pydantic 驗證一次欄位型別是否正確。</p>
+      <p>應用情境：同學每週要讀很多課堂筆記、小組會議記錄、讀書會逐字稿，
+         常常事後很難回想「那次到底講了什麼、誰要做什麼事」。這支程式可以
+         把一段雜亂的文字，自動整理成「重點摘要＋待辦事項清單（含負責人、
+         截止日、優先度）」，省下自己重新爬梳筆記的時間。</p>
+      <div class="stat-row">
+        <div class="stat">核心能力：結構化輸出（Structured Output）</div>
+        <div class="stat">模型來源：本地 Ollama（免費、不需要 API 金鑰）</div>
+        <div class="stat">已處理範例筆記：3 份</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <h2>怎麼執行</h2>
+    <div class="card">
+      <ol>
+        <li>安裝 <a href="https://ollama.com/download" target="_blank" rel="noopener">Ollama</a>，
+            啟動服務後執行 <code>ollama pull qwen2.5:7b</code>（或你想用的其他模型）下載模型。</li>
+        <li>安裝 <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener">uv</a>，
+            在專案資料夾執行 <code>uv sync</code> 安裝相依套件。</li>
+        <li>複製 <code>.env.example</code> 為 <code>.env</code>，依需要調整 <code>OLLAMA_MODEL</code> 等變數。</li>
+        <li>執行其中一個指令：</li>
+      </ol>
+      <pre><code># 處理單一筆記檔案
+uv run python -m notes_extractor run data/samples/lecture_data_structures.txt
+
+# 一次處理 data/samples/ 底下全部筆記
+uv run python -m notes_extractor run-all</code></pre>
+      <ol start="5">
+        <li>重新產生這個作品頁：
+          <pre><code>uv run python scripts/build_site.py</code></pre>
+        </li>
+        <li><code>git add</code> / <code>commit</code> / <code>push</code> 到 GitHub 的 <code>main</code> 分支，
+            GitHub Actions 就會自動把 <code>docs/</code> 部署到 GitHub Pages。</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="compare">
+    <h2>本地 vs 雲端比較（加分項）</h2>
+    <div class="card">
+      <p>這個專案選擇呼叫<strong>本地 Ollama</strong>而不是雲端 API，以下整理兩者的
+         差異，說明選擇本地模型的理由。</p>
+      <table class="action-table">
+        <thead>
+          <tr><th>比較項目</th><th>本地 Ollama（本專案採用）</th><th>雲端 API（OpenAI／Anthropic 等）</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>API 金鑰</td><td>不需要，完全迴避金鑰外洩風險</td><td>需要申請並妥善保管，放 .env</td></tr>
+          <tr><td>費用</td><td>免費（僅耗電腦運算資源）</td><td>依使用量計費</td></tr>
+          <tr><td>隱私</td><td>資料不離開自己電腦</td><td>資料會傳到第三方伺服器</td></tr>
+          <tr><td>速度／延遲</td><td>取決於本機硬體，筆電跑 7B 模型可能較慢</td><td>通常較快較穩定</td></tr>
+          <tr><td>模型品質</td><td>開源模型中文能力已不錯，但略遜於頂級雲端模型</td><td>目前最強模型多為雲端閉源模型</td></tr>
+          <tr><td>網路需求</td><td>下載模型後可離線使用</td><td>每次呼叫都要連網路</td></tr>
+          <tr><td>適合放進 CI？</td><td>不適合，CI 連不到本機 Ollama</td><td>可行，但要把金鑰放進 GitHub Secrets</td></tr>
+          <tr><td>建置／維運複雜度</td><td>需安裝 Ollama、下載模型（佔硬碟空間）</td><td>申請金鑰即可使用，不需安裝</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">詳細說明見 README「本地 Ollama vs 雲端 API 比較」章節。</p>
+    </div>
+  </section>
+
+  <section id="results">
+    <h2>執行結果</h2>
+    <div class="results-grid">
+    <article class="card result-card">
+      <header class="result-card__header">
+        <h3>資料結構課程筆記：雜湊表與紅黑樹</h3>
+        <span class="source-file">來源檔案：lecture_data_structures.txt</span>
+      </header>
+      <p class="summary">本堂課首先複習了雜湊表的基本概念，包括雜湊函式和碰撞處理方式。後半堂課介紹了紅黑樹的五個性質及插入操作。課堂上老師宣布了期中口試順序和分組口試時段表的整理任務。</p>
+      <div class="tags"><span class="tag">雜湊表</span><span class="tag">紅黑樹</span><span class="tag">期中口試</span><span class="tag">分組口試</span><span class="tag">資料結構</span></div>
+      <h4>重點</h4>
+      <ul class="key-points"><li>雜湊表的基本概念及碰撞處理方式</li><li>紅黑樹的五個性質及插入操作</li><li>期中口試順序及準備要求</li><li>分組口試時段表的整理任務</li></ul>
+      <h4>待辦事項</h4>
+      
+    <table class="action-table">
+      <thead>
+        <tr><th>待辦事項</th><th>負責人</th><th>截止日</th><th>優先度</th></tr>
+      </thead>
+      <tbody>
+            <tr>
+              <td>手刻一個雜湊表，並比較開放定址法跟鏈結法在不同負載因子下的效能</td>
+              <td>—</td>
+              <td>11/14 晚上 11:59</td>
+              <td><span class="badge" style="background:var(--macaron-pink)">高</span></td>
+            </tr>
+            <tr>
+              <td>把紅黑樹的插入/刪除操作練熟，準備期中口試</td>
+              <td>—</td>
+              <td>—</td>
+              <td><span class="badge" style="background:var(--macaron-pink)">高</span></td>
+            </tr>
+            <tr>
+              <td>整理分組口試的時段表並公告在班級群組</td>
+              <td>—</td>
+              <td>—</td>
+              <td><span class="badge" style="background:var(--macaron-yellow)">中</span></td>
+            </tr></tbody>
+    </table>
+      <details>
+        <summary>查看原始筆記內容</summary>
+        <pre class="raw-text">【資料結構課程筆記】第 9 週：雜湊表與紅黑樹
+
+今天老師先複習了雜湊表（Hash Table）的基本概念，包括雜湊函式、碰撞（collision）
+的處理方式，分別講了開放定址法（Open Addressing，含線性探測、平方探測）跟
+鏈結法（Separate Chaining）。老師特別強調，雜湊表平均情況下的查找、插入、刪除
+都是 O(1)，但最壞情況可能退化成 O(n)，這跟雜湊函式設計好不好、負載因子
+（load factor）有沒有控制好很有關係。
+
+後半堂課進入紅黑樹（Red-Black Tree）。老師講了紅黑樹的五個性質，並在黑板上
+示範了插入新節點後如何透過旋轉（rotation）跟改變顏色來維持平衡。這段大家都
+聽得有點吃力，老師說下週會再花半堂課複習一次。
+
+課堂上老師宣布了幾件事：
+1. 資結 hw4 開放繳交，內容是「手刻一個雜湊表，並比較開放定址法跟鏈結法在
+   不同負載因子下的效能」，繳交期限是下週五（11/14）晚上 11:59 前上傳到
+   iLearn，遲交每天扣 10 分。
+2. 期中口試下下週開始，順序會依照學號排，請大家這週把紅黑樹的插入/刪除
+   操作練熟，口試會抽問。
+3. 班代（小陳）負責在這週三前把分組口試的時段表整理好並公告在班級群組。
+
+我自己覺得紅黑樹的刪除操作最複雜，打算這週找同學一起復習一次，並且要重新
+把老師上課的投影片看過一遍，特別是旋轉操作那幾張。
+</pre>
+      </details>
+    </article>
+    <article class="card result-card">
+      <header class="result-card__header">
+        <h3>ERP 專題小組會議記錄 2026/11/05</h3>
+        <span class="source-file">來源檔案：meeting_erp_project.txt</span>
+      </header>
+      <p class="summary">本次會議主要討論了 ERP 期末專題的進度，包括雅婷的 SAP PP 流程圖、志豪的訪談報告以及我的系統需求規格書草稿。老師提醒了期末報告需要包含的內容。會議結束時，分配了下階段的工作任務。</p>
+      <div class="tags"><span class="tag">ERP 期末專題</span><span class="tag">SAP PP 流程圖</span><span class="tag">訪談報告</span><span class="tag">系統需求規格書</span><span class="tag">期末報告內容</span></div>
+      <h4>重點</h4>
+      <ul class="key-points"><li>雅婷需修改 MRP 流程圖並補上安全庫存判斷邏輯</li><li>志豪需整理第二份訪談逐字稿</li><li>我需補完系統需求規格書草稿，特別是 FI 跟採購模組的整合流程</li><li>下一次會議時間為 11/12 晚上 8 點，線上進行</li></ul>
+      <h4>待辦事項</h4>
+      
+    <table class="action-table">
+      <thead>
+        <tr><th>待辦事項</th><th>負責人</th><th>截止日</th><th>優先度</th></tr>
+      </thead>
+      <tbody>
+            <tr>
+              <td>修改 MRP 流程圖並補上安全庫存判斷邏輯</td>
+              <td>—</td>
+              <td>2026/11/10</td>
+              <td><span class="badge" style="background:var(--macaron-pink)">高</span></td>
+            </tr>
+            <tr>
+              <td>整理第二份訪談逐字稿</td>
+              <td>—</td>
+              <td>2026/11/11</td>
+              <td><span class="badge" style="background:var(--macaron-yellow)">中</span></td>
+            </tr>
+            <tr>
+              <td>補完系統需求規格書草稿，特別是 FI 跟採購模組的整合流程</td>
+              <td>—</td>
+              <td>2026/11/09</td>
+              <td><span class="badge" style="background:var(--macaron-pink)">高</span></td>
+            </tr></tbody>
+    </table>
+      <details>
+        <summary>查看原始筆記內容</summary>
+        <pre class="raw-text">【ERP 專題小組會議記錄】2026/11/05 線上會議
+
+出席：我、雅婷、志豪、老師（助教代為記錄重點）
+
+本次會議主要討論 ERP 期末專題的進度，我們這組選的主題是「中小企業導入 SAP
+的採購與庫存管理流程模擬」。
+
+討論重點：
+- 雅婷報告了目前 SAP PP（生產規劃）模組的流程圖草稿，大家覺得物料需求規劃
+  （MRP）那一段畫得不夠細，需要補上安全庫存跟前置時間（lead time）的判斷邏輯。
+- 志豪分享了上週訪談一間中小企業老闆的逐字稿，老闆提到他們目前採購作業
+  最大的痛點是「缺乏即時庫存可視性」，常常重複下單或缺貨。這段很適合放進
+  我們報告的「問題描述」章節。
+- 我負責的部分是把訪談內容整理成系統需求規格書的草稿，目前完成大概六成，
+  FI（財務）模組跟採購模組之間的整合流程還沒寫完。
+- 老師在會議尾聲提醒，期末報告需要包含完整的流程圖（最好用 BPMN 符號）、
+  系統架構圖、以及至少一個模組的實際操作截圖（用 SAP 的教育版系統）。
+
+接下來的分工與待辦：
+1. 雅婷負責在 11/10 前把 MRP 流程圖修改完成，並補上安全庫存判斷邏輯。
+2. 志豪負責整理第二份訪談（原訂 11/8 要跟第二間廠商訪談），訪談完要在
+   三天內把逐字稿整理出來。
+3. 我自己要在這週日（11/9）前把系統需求規格書草稿補完，尤其是 FI 跟採購
+   模組的整合流程部分，這是優先度最高的項目，因為下週三老師要先 review。
+4. 下次會議時間訂在 11/12（四）晚上 8 點，地點一樣是線上會議室。
+</pre>
+      </details>
+    </article>
+    <article class="card result-card">
+      <header class="result-card__header">
+        <h3>0/1 背包問題 vs 分數背包問題：貪婪演算法 vs 動態規劃</h3>
+        <span class="source-file">來源檔案：study_group_algorithms.txt</span>
+      </header>
+      <p class="summary">本次讀書會討論了0/1背包問題和分數背包問題，並比較了貪婪演算法和動態規劃在解決這兩個問題上的適用性。阿凱和我一起釐清了貪婪演算法在分數背包問題中的應用，以及在0/1背包問題中為什麼需要使用動態規劃。我們還約定下週六再聚會練習Kruskal和Prim演算法的手算題目。</p>
+      <div class="tags"><span class="tag">貪婪演算法</span><span class="tag">動態規劃</span><span class="tag">0/1背包問題</span><span class="tag">分數背包問題</span><span class="tag">演算法比較</span></div>
+      <h4>重點</h4>
+      <ul class="key-points"><li>0/1背包問題和分數背包問題的比較</li><li>貪婪演算法在分數背包問題中的應用</li><li>動態規劃在0/1背包問題中的必要性</li><li>下週六練習Kruskal和Prim演算法的手算題目</li><li>整理貪婪演算法和動態規劃的筆記</li></ul>
+      <h4>待辦事項</h4>
+      
+    <table class="action-table">
+      <thead>
+        <tr><th>待辦事項</th><th>負責人</th><th>截止日</th><th>優先度</th></tr>
+      </thead>
+      <tbody>
+            <tr>
+              <td>整理貪婪演算法和動態規劃的筆記</td>
+              <td>—</td>
+              <td>11/10</td>
+              <td><span class="badge" style="background:var(--macaron-yellow)">中</span></td>
+            </tr>
+            <tr>
+              <td>練習Kruskal和Prim演算法的手算題目</td>
+              <td>—</td>
+              <td>11/14</td>
+              <td><span class="badge" style="background:var(--macaron-pink)">高</span></td>
+            </tr></tbody>
+    </table>
+      <details>
+        <summary>查看原始筆記內容</summary>
+        <pre class="raw-text">【演算法讀書會逐字稿節錄】主題：貪婪演算法 vs 動態規劃
+
+阿凱：我們今天約好要一起釐清 0/1 背包問題跟分數背包問題為什麼一個可以用
+貪婪演算法解、另一個不行，對吧？
+
+我：對，上次口試練習的時候我被問倒了。我記得分數背包問題因為物品可以
+「切割」，所以每次都選單位重量價值最高的物品一定是最優解，這是貪婪演算法
+可以保證最佳解的經典例子。
+
+阿凱：沒錯。但 0/1 背包問題因為物品不能切割，只能整個拿或整個不拿，貪婪
+策略在某些情況下會卡住，沒辦法回頭調整，所以無法保證全域最佳解，必須用
+動態規劃，把「前 i 個物品、容量為 w 時的最大價值」定義成子問題，才能處理
+「要不要拿這個物品」這種互斥的選擇。
+
+我：那我們等等要不要一起畫一下動態規劃的那張表格？我上次自己畫的時候，
+轉移方程式那邊卡住了，一直搞不清楚 dp[i][w] 到底要跟 dp[i-1][w] 還是
+dp[i-1][w-weight[i]] 比較。
+
+阿凱：好啊，我們現在就來畫。另外提醒一下，我們讀書會約好這週六（11/14）
+下午兩點要再聚一次，到時候換練習 Kruskal 演算法跟 Prim 演算法的手算題目，
+我負責找三題練習題過來，妳說妳要整理一份「貪婪 vs 動態規劃」的一頁式
+整理筆記，方便口試前複習。
+
+我：好，那我這週五之前會把整理筆記寫好傳到群組，妳順便也幫忙看一下有沒有
+哪裡寫錯，畢竟這個主題我們倆都還不是很熟。
+</pre>
+      </details>
+    </article></div>
+  </section>
+
+  <section id="ai-usage">
+    <h2>AI 使用說明</h2>
+    <div class="card">
+      <p><strong>使用的工具：</strong>Claude（Cowork）。</p>
+      <p><strong>用在哪裡：</strong></p>
+      <ul>
+        <li>規劃整體專案架構（為什麼讓 GitHub Actions 只負責部署靜態頁面、而不在 CI
+            裡即時呼叫 LLM，以避免金鑰管理風險與 workflow 不穩定）。</li>
+        <li>撰寫 Pydantic 結構化輸出 schema（<code>schema.py</code>）與呼叫 Ollama
+            的程式（<code>llm_client.py</code>），包含格式驗證失敗時的重試邏輯。</li>
+        <li>撰寫 CLI 介面、範例筆記資料、這個作品頁的產生器（<code>scripts/build_site.py</code>）、
+            以及 GitHub Actions 的部署 workflow。</li>
+      </ul>
+      <p><strong>自己做了什麼修改／驗證：</strong></p>
+      <ul>
+        <li>實際安裝並啟動自己電腦上的 Ollama，用 <code>run-all</code> 真的跑過全部
+            三份範例筆記，確認輸出的 JSON 欄位（標題／摘要／重點／待辦事項）
+            內容合理，沒有看起來像是模型亂編的待辦事項。</li>
+        <li>跑過 <code>pytest</code> 測試（不需連線 Ollama，用假資料驗證 schema 與
+            作品頁產生邏輯），確認程式邏輯正確。</li>
+        <li>確認 <code>.env</code> 有被 <code>.gitignore</code> 排除，commit 歷史裡沒有任何金鑰
+            或機密資訊。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    頁面產生時間：2026-11-08 13:37 CST ｜ 由 <code>scripts/build_site.py</code> 自動產生
+  </footer>
+</div>
+</body>
+</html>
