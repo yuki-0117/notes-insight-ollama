@@ -1,0 +1,30 @@
+[project]
+name = "notes-insight-ollama"
+version = "0.1.0"
+description = "呼叫本地 Ollama 模型，將讀書筆記/會議記錄自動整理成重點摘要與待辦事項清單（結構化輸出示範）"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "ollama>=0.4.0",
+    "pydantic>=2.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/notes_extractor"]
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "scripts"]
+testpaths = ["tests"]

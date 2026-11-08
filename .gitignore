@@ -1,0 +1,21 @@
+# 環境變數與金鑰 -- 絕對不要 commit
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# uv
+.uv/
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
